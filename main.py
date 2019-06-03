@@ -110,28 +110,21 @@ if __name__ == '__main__':
 
     SurfaceList = []
     for i in range(TheLDE.NumberOfSurfaces):
-        SurfaceList.append(TheLDE.GetSurfaceAt(i))
-
-    TheLDE.GetSurfaceAt(9).TiltDecenterData.BeforeSurfaceOrder = constants.TiltDecenterOrderType_Decenter_Tilt
-    # TheLDE.GetSurfaceAt(9).TiltDecenterData.BeforeSurfaceDecenterX = 2
-    # TheLDE.GetSurfaceAt(9).TiltDecenterData.AfterSurfaceDecenterX = -2
-    # TheLDE.GetSurfaceAt(9).TiltDecenterData.BeforeSurfaceDecenterY = -3
-    # TheLDE.GetSurfaceAt(9).TiltDecenterData.AfterSurfaceDecenterY = 3
-
-    cbData = TheLDE.GetSurfaceAt(11)
-    print(cbData.Thickness)
-    # print(cbData.MechanicalSemiDiameter)
-    print(cbData.Parameter1)
-
-    # print(help(TheLDE.GetSurfaceAt(9).TiltDecenterData))
-    # print(TheLDE.GetSurfaceAt(8).TiltDecenterData.DecenterX)
-    # print(TheLDE.GetSurfaceAt(9).TiltDecenterData.AfterSurfaceDecenterX)
-    # print(TheLDE.GetSurfaceAt(9).TiltDecenterData.BeforeSurfaceDecenterY)
-    # print(TheLDE.GetSurfaceAt(9).TiltDecenterData.AfterSurfaceDecenterY)
+        Surface = TheLDE.GetSurfaceAt(i)
+        SurfaceList.append(Surface)
+        # print(i)
+        # print(Surface.Type)
+        # print(Surface.TypeName == 'Coordinate Break')
 
     CoordinateBreakSurfaces = [8, 11, 12, 15, 16, 19]
-    for i in range(len(CoordinateBreakSurfaces), 2):
-        Surface = SurfaceList[i]
+    for i in range(len(CoordinateBreakSurfaces)):
+        Surface = TheLDE.GetSurfaceAt(i)
+        # assert Surface.TypeName == 'Coordinate Break'
+
+        # print((Surface.GetSurfaceCell(6)).DoubleValue)
+        # print((Surface.GetSurfaceCell(SurfaceColumn.Par3)).DoubleValue)
+        # print((Surface.GetSurfaceCell(SurfaceColumn.Par4)).DoubleValue)
+        # print((Surface.GetSurfaceCell(SurfaceColumn.Par5)).DoubleValue)
 
     # Spot Diagram Analysis Results
     spot = TheSystem.Analyses.New_Analysis(constants.AnalysisIDM_StandardSpot)
@@ -161,24 +154,15 @@ if __name__ == '__main__':
 
     # Define batch ray trace constants
     hx = 0.0
+    hy = 0.0
     max_wave = TheSystem.SystemData.Wavelengths.NumberOfWavelengths
-    num_fields = TheSystem.SystemData.Fields.NumberOfFields
-    # print(max_wave, " ", num_fields)
-    hy_ary = np.array([0, 0.707, 1])
 
     # Initialize x/y image plane arrays
-    x_ary = np.empty((num_fields, max_wave, ((max_rays + 1) * (max_rays + 1))))
-    y_ary = np.empty((num_fields, max_wave, ((max_rays + 1) * (max_rays + 1))))
+    x_ary = np.empty((max_wave, ((max_rays + 1) * (max_rays + 1))))
+    y_ary = np.empty((max_wave, ((max_rays + 1) * (max_rays + 1))))
     # print("x_ary shape", x_ary.shape)
     # print("x_ary shape", y_ary.shape)
 
-    # Determine maximum field in Y only
-    max_field = 0.0
-    for i in range(1, num_fields + 1):
-        if (TheSystem.SystemData.Fields.GetField(i).Y > max_field):
-            max_field = TheSystem.SystemData.Fields.GetField(i).Y
-
-    # print("Max field", max_field)
     plt.rcParams["figure.figsize"] = (5, 5)
     colors = ('k', 'g', 'r')
     markers = ('+', 's', '^')
@@ -192,13 +176,9 @@ if __name__ == '__main__':
     elif TheSystem.SystemData.Fields.GetFieldType() == constants.FieldType_RealImageHeight:
         field_type = 'Height'
 
-    # print("Field type", field_type)
-    field = 1
     for wave in range(1, max_wave + 1):
-        # Adding Rays to Batch, varying normalised object height hy
+        # Adding Rays to Batch
         normUnPolData.ClearData()
-        waveNumber = wave
-        # for i = 1:((max_rays + 1) * (max_rays + 1))
         for i in range(1, (max_rays + 1) * (max_rays + 1) + 1):
 
             px = np.random.random() * 2 - 1
@@ -207,7 +187,7 @@ if __name__ == '__main__':
             while (px*px + py*py > 1):
                 py = np.random.random() * 2 - 1
             normUnPolData.AddRay(
-                waveNumber, hx, hy_ary[field - 1], px, py, constants.OPDMode_None)
+                wave, hx, hy, px, py, constants.OPDMode_None)
 
         baseTool = CastTo(raytrace, 'ISystemTool')
         baseTool.RunAndWaitForCompletion()
@@ -216,16 +196,18 @@ if __name__ == '__main__':
         normUnPolData.StartReadingResults()
         output = normUnPolData.ReadNextResult()
 
-        while output[0]:                                                    # success
+        while output[0]:    # success
             # ErrorCode & vignetteCode
             if ((output[2] == 0) and (output[3] == 0)):
-                x_ary[field - 1, wave - 1, output[1] - 1] = output[4]   # X
-                y_ary[field - 1, wave - 1, output[1] - 1] = output[5]   # Y
+                x_ary[wave - 1, output[1] - 1] = output[4]   # X
+                y_ary[wave - 1, output[1] - 1] = output[5]   # Y
             output = normUnPolData.ReadNextResult()
-        temp = plt.plot(np.squeeze(x_ary[field - 1, wave - 1, :]), np.squeeze(
-            y_ary[field - 1, wave - 1, :]), '.', ms=3, c=colors[wave - 1],
+        temp = plt.plot(np.squeeze(x_ary[wave - 1, :]), np.squeeze(
+            y_ary[wave - 1, :]), '.', ms=3, c=colors[wave - 1],
             marker=markers[wave - 1])
 
+    np.savetxt("x.csv", x_ary, delimiter=",")
+    np.savetxt("y.csv", y_ary, delimiter=",")
     plt.title('Spot Diagram: %s' % (os.path.basename(testFile)))
     plt.draw()
 

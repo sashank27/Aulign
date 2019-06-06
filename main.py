@@ -118,14 +118,17 @@ if __name__ == '__main__':
 
     CoordinateBreakSurfaces = [8, 11, 12, 15, 16, 19]
     for i in range(len(CoordinateBreakSurfaces)):
-        Surface = TheLDE.GetSurfaceAt(i)
-        # assert Surface.TypeName == 'Coordinate Break'
+        Surface = TheLDE.GetSurfaceAt(CoordinateBreakSurfaces[i])
+        # SurfaceCast = CastTo(Surface.SurfaceData, 'ISurfaceCoordinateBreak')
+        print(CoordinateBreakSurfaces[i])
+        print((Surface.GetSurfaceCell(constants.SurfaceColumn_Par1)))
+        print((Surface.GetSurfaceCell(constants.SurfaceColumn_Par2)))
+        print((Surface.GetSurfaceCell(constants.SurfaceColumn_Par3)))
+        print((Surface.GetSurfaceCell(constants.SurfaceColumn_Par4)))
+        print((Surface.GetSurfaceCell(constants.SurfaceColumn_Par5)))
 
-        # print((Surface.GetSurfaceCell(6)).DoubleValue)
-        # print((Surface.GetSurfaceCell(SurfaceColumn.Par3)).DoubleValue)
-        # print((Surface.GetSurfaceCell(SurfaceColumn.Par4)).DoubleValue)
-        # print((Surface.GetSurfaceCell(SurfaceColumn.Par5)).DoubleValue)
-
+    TheLDE.GetSurfaceAt(15).GetSurfaceCell(
+        constants.SurfaceColumn_Par1).DoubleValue = 2.0
     # Spot Diagram Analysis Results
     spot = TheSystem.Analyses.New_Analysis(constants.AnalysisIDM_StandardSpot)
     spot_setting = spot.GetSettings()
@@ -144,6 +147,63 @@ if __name__ == '__main__':
           (spot_results.SpotData.GetRMSSpotSizeFor(1, 1)))
     print('GEO radius: %6.3f' %
           (spot_results.SpotData.GetGeoSpotSizeFor(1, 1)))
+    # print(spot_results.SpotData.GetReferenceCoordinate_X_For(1, 1))
+    # print(spot_results.SpotData.GetReferenceCoordinate_Y_For(1, 1))
+
+    # Zernike Standard Coefficients Analysis Results
+    zernike = TheSystem.Analyses.New_Analysis(
+        constants.AnalysisIDM_ZernikeStandardCoefficients)
+    zernike_setting = zernike.GetSettings()
+    baseSetting = CastTo(zernike_setting, 'IAS_ZernikeStandardCoefficients')
+    baseSetting.Field.SetFieldNumber(0)
+    baseSetting.Wavelength.UseAllWavelengths()
+    baseSetting.Surface.UseImageSurface()
+
+    # Extract Zernike Coefficients
+    base = CastTo(zernike, 'IA_')
+    base.ApplyAndWaitForCompletion()
+    zernike_results = base.GetResults()
+    res = CastTo(zernike_results, 'IAR_')
+    print(res.GetTextFile(cwd + "\\hd.txt"))
+
+    # analIDM = []
+    # API_enum = list(constants.__dicts__[0].keys())
+    # for i in API_enum:
+    #     if i.find('AnalysisIDM_') != -1:
+    #         analIDM.append(constants.__dicts__[0].get(i))
+    #         print(constants.__dicts__[0].get(i), ':  ', i)
+    # analIDM.sort()
+
+    # # print('Name\tSetting\tDatGrid\tDatGridRgb\tDatSrs\tDatSrsRgb\t' +
+    # #       'DatScat\tDatScatRgb\tRayData\tCriRayDat\tPathAnal\tSpotDat')
+
+    # for k in analIDM:
+    #     a = TheSystem.Analyses.New_Analysis(k)
+    #     if a is None:
+    #         print('This analysis cannot be opened in ',
+    #               'Sequential Mode' if TheSystem.Mode == 0 else 'Non-Sequential Mode',
+    #               ': enumID ', k)
+    #         continue
+    #     ar = a.GetResults()
+    #     # print(a.GetAnalysisName, '\t',
+    #     #     a.HasAnalysisSpecificSettings, '\t',
+    #     #     ar.DataGrids is not None and ar.NumberOfDataGrids > 0, '\t',
+    #     #     ar.DataGridsRgb is not None and ar.NumberOfDataGridsRgb > 0, '\t',
+    #     #     ar.DataSeries is not None and ar.NumberOfDataSeries > 0, '\t',
+    #     #     ar.DataSeriesRgb is not None and ar.NumberOfDataSeriesRgb > 0, '\t',
+    #     #     ar.DataScatterPoints is not None and ar.NumberOfDataScatterPoints > 0, '\t',
+    #     #     ar.DataScatterPointsRgb is not None and ar.NumberOfDataScatterPoints > 0, '\t',
+    #     #     ar.RayData is not None, '\t',
+    #     #     ar.CriticalRayData is not None, '\t',
+    #     #     ar.PathAnalysisData is not None, '\t',
+    #     #     ar.SpotData is not None)
+    #     print(a.GetAnalysisName, '\t',
+    #           a.HasAnalysisSpecificSettings, '\t',
+    #           ar.HeaderData is not None, '\t',
+    #           ar.MetaData is not None, '\t',
+    #           ar.Messages is not None and ar.NumberOfMessages > 0)
+
+    #     a.Close()
 
     # Set up Batch Ray Trace
     raytrace = TheSystem.Tools.OpenBatchRayTrace()
@@ -206,8 +266,8 @@ if __name__ == '__main__':
             y_ary[wave - 1, :]), '.', ms=3, c=colors[wave - 1],
             marker=markers[wave - 1])
 
-    np.savetxt("x.csv", x_ary, delimiter=",")
-    np.savetxt("y.csv", y_ary, delimiter=",")
+    # np.savetxt("x.csv", x_ary, delimiter=",")
+    # np.savetxt("y.csv", y_ary, delimiter=",")
     plt.title('Spot Diagram: %s' % (os.path.basename(testFile)))
     plt.draw()
 

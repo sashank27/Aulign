@@ -6,6 +6,22 @@ import numpy as np
 import inspect
 
 
+def extractZernikeCoefficents(file):
+        import codecs
+        import re
+
+        pattern = "^Z\s*(\d*)\s*([-]?[0-9]+[,.]?[0-9]*).*$"
+
+        x = []
+        for line in codecs.open(file, 'r', encoding='utf16'):
+            match = re.search(pattern, line)
+            if match is not None:
+                x.append(float(match.group(2)))
+
+        coefficients = np.array(x)
+        return coefficients
+
+
 class PythonStandaloneApplication(object):
 
     class LicenseException(Exception):
@@ -107,39 +123,120 @@ class ZOSAPIAnalysis(object):
         self.TheSystem.LoadFile(file, False)
         print("File Imported")
 
-    def CreatePertubationFilter1(self, Decenter_X=0.0, Decenter_Y=0.0,
-                                 Tilt_About_X=0.0, Tilt_About_Y=0.0,
-                                 Tilt_About_Z=0.0):
+    def definePertubationAndGetResults(self, element="lens", param="dx", optimum=0, maxval=0, minval=0, step=0):
+        import os
+        cwd = os.getcwd()
+        vals = np.linspace(optimum+minval, optimum+maxval,
+                           num=((maxval-minval)/step)+1)
+        for i in vals:
+            if i-optimum == 0:
+                continue
+            print(param + "=" + str(i))
+            self.datadir = cwd + "\\Data\\" + element + \
+                "\\" + param + "{0:.3f}".format(i) + "\\"
+            if not os.path.exists(self.datadir):
+                os.makedirs(self.datadir)
+            Decenter_X = Decenter_Y = Tilt_About_X = Tilt_About_Y = Tilt_About_Z = 0
+            if param == "dx":
+                Decenter_X = i
+            if param == "dy":
+                Decenter_Y = i
+            if param == "tx":
+                Tilt_About_X = i
+            if param == "ty":
+                Tilt_About_Y = i
+            if param == "tz":
+                Tilt_About_Z = i
+
+            if element == "lens":
+                self.CreatePertubationLens(Decenter_X=Decenter_X, Decenter_Y=Decenter_Y,
+                                           Tilt_About_X=Tilt_About_X, Tilt_About_Y=Tilt_About_Y, Tilt_About_Z=Tilt_About_Z)
+            if element == "pm":
+                self.CreatePertubationPM(Decenter_X=Decenter_X, Decenter_Y=Decenter_Y,
+                                         Tilt_About_X=Tilt_About_X, Tilt_About_Y=Tilt_About_Y, Tilt_About_Z=Tilt_About_Z)
+            if element == "sm":
+                self.CreatePertubationSM(Decenter_X=Decenter_X, Decenter_Y=Decenter_Y,
+                                         Tilt_About_X=Tilt_About_X, Tilt_About_Y=Tilt_About_Y, Tilt_About_Z=Tilt_About_Z)
+            if element == "filter2":
+                self.CreatePertubationFilter1(Decenter_X=Decenter_X, Decenter_Y=Decenter_Y,
+                                              Tilt_About_X=Tilt_About_X, Tilt_About_Y=Tilt_About_Y, Tilt_About_Z=Tilt_About_Z)
+            if element == "filter2":
+                self.CreatePertubationFilter2(Decenter_X=Decenter_X, Decenter_Y=Decenter_Y,
+                                              Tilt_About_X=Tilt_About_X, Tilt_About_Y=Tilt_About_Y, Tilt_About_Z=Tilt_About_Z)
+            if element == "ccd":
+                self.CreatePertubationCCD(Decenter_X=Decenter_X, Decenter_Y=Decenter_Y,
+                                          Tilt_About_X=Tilt_About_X, Tilt_About_Y=Tilt_About_Y, Tilt_About_Z=Tilt_About_Z)
+
+            self.SpotDiagramAnalysisResults()
+            self.ZernikeCoefficients()
+            # self.CreateBatchRayTrace()
+            # print("aaa")
+
+    def CreatePertubationPM(self, Decenter_X=0.0, Decenter_Y=0.0,
+                            Tilt_About_X=0.0, Tilt_About_Y=0.0,
+                            Tilt_About_Z=0.0):
+        # Get Surfaces
+        TheLDE = self.TheSystem.LDE
+        SurfaceBefore = TheLDE.GetSurfaceAt(5)
+        SurfaceAfter = TheLDE.GetSurfaceAt(7)
+
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par1).DoubleValue = float(Decenter_X)
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par2).DoubleValue = float(Decenter_Y)
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par3).DoubleValue = float(Tilt_About_X)
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par4).DoubleValue = float(Tilt_About_Y)
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par5).DoubleValue = float(Tilt_About_Z)
+
+        SurfaceAfter.GetSurfaceCell(
+            constants.SurfaceColumn_Par1).DoubleValue = -float(Decenter_X)
+        SurfaceAfter.GetSurfaceCell(
+            constants.SurfaceColumn_Par2).DoubleValue = -float(Decenter_Y)
+        SurfaceAfter.GetSurfaceCell(
+            constants.SurfaceColumn_Par3).DoubleValue = -float(Tilt_About_X)
+        SurfaceAfter.GetSurfaceCell(
+            constants.SurfaceColumn_Par4).DoubleValue = -float(Tilt_About_Y)
+        SurfaceAfter.GetSurfaceCell(
+            constants.SurfaceColumn_Par5).DoubleValue = -float(Tilt_About_Z)
+
+        print('Pertubation in Primary Mirror Done!')
+
+    def CreatePertubationSM(self, Decenter_X=0.0, Decenter_Y=0.0,
+                            Tilt_About_X=0.0, Tilt_About_Y=0.0,
+                            Tilt_About_Z=0.0):
         # Get Surfaces
         TheLDE = self.TheSystem.LDE
         SurfaceBefore = TheLDE.GetSurfaceAt(8)
-        SurfaceAfter = TheLDE.GetSurfaceAt(11)
+        SurfaceAfter = TheLDE.GetSurfaceAt(10)
 
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par1).DoubleValue = Decenter_X
+            constants.SurfaceColumn_Par1).DoubleValue = float(Decenter_X)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par2).DoubleValue = Decenter_Y
+            constants.SurfaceColumn_Par2).DoubleValue = float(Decenter_Y)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par3).DoubleValue = Tilt_About_X
+            constants.SurfaceColumn_Par3).DoubleValue = float(Tilt_About_X)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par4).DoubleValue = Tilt_About_Y
+            constants.SurfaceColumn_Par4).DoubleValue = float(Tilt_About_Y)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par5).DoubleValue = Tilt_About_Z
+            constants.SurfaceColumn_Par5).DoubleValue = float(Tilt_About_Z)
 
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par1).DoubleValue = Decenter_X
+            constants.SurfaceColumn_Par1).DoubleValue = -float(Decenter_X)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par2).DoubleValue = Decenter_Y
+            constants.SurfaceColumn_Par2).DoubleValue = -float(Decenter_Y)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par3).DoubleValue = Tilt_About_X
+            constants.SurfaceColumn_Par3).DoubleValue = -float(Tilt_About_X)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par4).DoubleValue = Tilt_About_Y
+            constants.SurfaceColumn_Par4).DoubleValue = -float(Tilt_About_Y)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par5).DoubleValue = Tilt_About_Z
+            constants.SurfaceColumn_Par5).DoubleValue = -float(Tilt_About_Z)
 
-        print('Pertubation in Filter 1 Done!')
+        print('Pertubation in Secondary Mirror Done!')
 
-    def CreatePertubationFilter2(self, Decenter_X=0.0, Decenter_Y=0.0,
+    def CreatePertubationFilter1(self, Decenter_X=0.0, Decenter_Y=0.0,
                                  Tilt_About_X=0.0, Tilt_About_Y=0.0,
                                  Tilt_About_Z=0.0):
         # Get Surfaces
@@ -148,26 +245,58 @@ class ZOSAPIAnalysis(object):
         SurfaceAfter = TheLDE.GetSurfaceAt(15)
 
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par1).DoubleValue = Decenter_X
+            constants.SurfaceColumn_Par1).DoubleValue = float(Decenter_X)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par2).DoubleValue = Decenter_Y
+            constants.SurfaceColumn_Par2).DoubleValue = float(Decenter_Y)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par3).DoubleValue = Tilt_About_X
+            constants.SurfaceColumn_Par3).DoubleValue = float(Tilt_About_X)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par4).DoubleValue = Tilt_About_Y
+            constants.SurfaceColumn_Par4).DoubleValue = float(Tilt_About_Y)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par5).DoubleValue = Tilt_About_Z
+            constants.SurfaceColumn_Par5).DoubleValue = float(Tilt_About_Z)
 
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par1).DoubleValue = Decenter_X
+            constants.SurfaceColumn_Par1).DoubleValue = -float(Decenter_X)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par2).DoubleValue = Decenter_Y
+            constants.SurfaceColumn_Par2).DoubleValue = -float(Decenter_Y)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par3).DoubleValue = Tilt_About_X
+            constants.SurfaceColumn_Par3).DoubleValue = -float(Tilt_About_X)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par4).DoubleValue = Tilt_About_Y
+            constants.SurfaceColumn_Par4).DoubleValue = -float(Tilt_About_Y)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par5).DoubleValue = Tilt_About_Z
+            constants.SurfaceColumn_Par5).DoubleValue = -float(Tilt_About_Z)
+
+        print('Pertubation in Filter 1 Done!')
+
+    def CreatePertubationFilter2(self, Decenter_X=0.0, Decenter_Y=0.0,
+                                 Tilt_About_X=0.0, Tilt_About_Y=0.0,
+                                 Tilt_About_Z=0.0):
+        # Get Surfaces
+        TheLDE = self.TheSystem.LDE
+        SurfaceBefore = TheLDE.GetSurfaceAt(16)
+        SurfaceAfter = TheLDE.GetSurfaceAt(19)
+
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par1).DoubleValue = float(Decenter_X)
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par2).DoubleValue = float(Decenter_Y)
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par3).DoubleValue = float(Tilt_About_X)
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par4).DoubleValue = float(Tilt_About_Y)
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par5).DoubleValue = float(Tilt_About_Z)
+
+        SurfaceAfter.GetSurfaceCell(
+            constants.SurfaceColumn_Par1).DoubleValue = -float(Decenter_X)
+        SurfaceAfter.GetSurfaceCell(
+            constants.SurfaceColumn_Par2).DoubleValue = -float(Decenter_Y)
+        SurfaceAfter.GetSurfaceCell(
+            constants.SurfaceColumn_Par3).DoubleValue = -float(Tilt_About_X)
+        SurfaceAfter.GetSurfaceCell(
+            constants.SurfaceColumn_Par4).DoubleValue = -float(Tilt_About_Y)
+        SurfaceAfter.GetSurfaceCell(
+            constants.SurfaceColumn_Par5).DoubleValue = -float(Tilt_About_Z)
 
         print('Pertubation in Filter 2 Done!')
 
@@ -176,32 +305,52 @@ class ZOSAPIAnalysis(object):
                               Tilt_About_Z=0.0):
         # Get Surfaces
         TheLDE = self.TheSystem.LDE
-        SurfaceBefore = TheLDE.GetSurfaceAt(16)
-        SurfaceAfter = TheLDE.GetSurfaceAt(19)
+        SurfaceBefore = TheLDE.GetSurfaceAt(20)
+        SurfaceAfter = TheLDE.GetSurfaceAt(23)
 
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par1).DoubleValue = Decenter_X
+            constants.SurfaceColumn_Par1).DoubleValue = float(Decenter_X)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par2).DoubleValue = Decenter_Y
+            constants.SurfaceColumn_Par2).DoubleValue = float(Decenter_Y)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par3).DoubleValue = Tilt_About_X
+            constants.SurfaceColumn_Par3).DoubleValue = float(Tilt_About_X)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par4).DoubleValue = Tilt_About_Y
+            constants.SurfaceColumn_Par4).DoubleValue = float(Tilt_About_Y)
         SurfaceBefore.GetSurfaceCell(
-            constants.SurfaceColumn_Par5).DoubleValue = Tilt_About_Z
+            constants.SurfaceColumn_Par5).DoubleValue = float(Tilt_About_Z)
 
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par1).DoubleValue = Decenter_X
+            constants.SurfaceColumn_Par1).DoubleValue = -float(Decenter_X)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par2).DoubleValue = Decenter_Y
+            constants.SurfaceColumn_Par2).DoubleValue = -float(Decenter_Y)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par3).DoubleValue = Tilt_About_X
+            constants.SurfaceColumn_Par3).DoubleValue = -float(Tilt_About_X)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par4).DoubleValue = Tilt_About_Y
+            constants.SurfaceColumn_Par4).DoubleValue = -float(Tilt_About_Y)
         SurfaceAfter.GetSurfaceCell(
-            constants.SurfaceColumn_Par5).DoubleValue = Tilt_About_Z
+            constants.SurfaceColumn_Par5).DoubleValue = -float(Tilt_About_Z)
 
         print('Pertubation in Lens Done!')
+
+    def CreatePertubationCCD(self, Decenter_X=0.0, Decenter_Y=0.0,
+                             Tilt_About_X=0.0, Tilt_About_Y=0.0,
+                             Tilt_About_Z=0.0):
+        # Get Surfaces
+        TheLDE = self.TheSystem.LDE
+        SurfaceBefore = TheLDE.GetSurfaceAt(24)
+
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par1).DoubleValue = Decenter_X
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par2).DoubleValue = Decenter_Y
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par3).DoubleValue = Tilt_About_X
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par4).DoubleValue = Tilt_About_Y
+        SurfaceBefore.GetSurfaceCell(
+            constants.SurfaceColumn_Par5).DoubleValue = Tilt_About_Z
+
+        print('Pertubation in CCD Done!')
 
     def ZernikeCoefficients(self, fileName=None):
         # Zernike Standard Coefficients Analysis Results
@@ -223,10 +372,15 @@ class ZOSAPIAnalysis(object):
         file = fileName if fileName is not None else "res.txt"
         import os
         cwd = os.getcwd()
-        results.GetTextFile(cwd + "\\Zernike\\" + file)
+        path = self.datadir + file
+        results.GetTextFile(path)
+        coefficients = extractZernikeCoefficents(path)
+        np.savetxt(self.datadir + "zernike.csv", coefficients, delimiter=",")
+        zernike.Close()
 
     def CreateBatchRayTrace(self, max_rays=30):
         # Set up Batch Ray Trace
+        print("bbb")
         raytrace = self.TheSystem.Tools.OpenBatchRayTrace()
         nsur = self.TheSystem.LDE.NumberOfSurfaces
         normUnPolData = raytrace.CreateNormUnpol(
@@ -284,11 +438,11 @@ class ZOSAPIAnalysis(object):
                 y_ary[wave - 1, :]), '.', ms=3, c=colors[wave - 1],
                 marker=markers[wave - 1])
 
-        # np.savetxt("x.csv", x_ary, delimiter=",")
-        # np.savetxt("y.csv", y_ary, delimiter=",")
+        np.savetxt(self.datadir + "x.csv", x_ary, delimiter=",")
+        np.savetxt(self.datadir + "y.csv", y_ary, delimiter=",")
         plt.title('Spot Diagram')
-        plt.draw()
-        # plt.show()
+        plt.savefig(self.datadir + "SpotDiagram.png")
+        raytrace.Close()
 
     def SpotDiagramAnalysisResults(self):
         # Spot Diagram Analysis Results
@@ -304,20 +458,39 @@ class ZOSAPIAnalysis(object):
         base = CastTo(spot, 'IA_')
         base.ApplyAndWaitForCompletion()
         spot_results = base.GetResults()
+        f = open(self.datadir + "rmsgeo.txt", "w+")
+        f.write(str(spot_results.SpotData.GetRMSSpotSizeFor(1, 1)) + "\n" +
+                str(spot_results.SpotData.GetGeoSpotSizeFor(1, 1)))
         print('RMS radius: %6.3f' %
               (spot_results.SpotData.GetRMSSpotSizeFor(1, 1)))
         print('GEO radius: %6.3f' %
               (spot_results.SpotData.GetGeoSpotSizeFor(1, 1)))
+        spot.Close()
 
 
 if __name__ == '__main__':
     file = "test2.zmx"
     ob = ZOSAPIAnalysis(file)
 
-    ob.CreatePertubationFilter1()
-    ob.SpotDiagramAnalysisResults()
-    ob.CreateBatchRayTrace()
-    ob.ZernikeCoefficients()
+    ob.definePertubationAndGetResults(
+        element="pm", param="dx", optimum=0, minval=-0.05, maxval=0.05, step=0.001)
+    ob.definePertubationAndGetResults(
+        element="pm", param="dy", optimum=0, minval=-0.05, maxval=0.05, step=0.001)
+
+    ob.definePertubationAndGetResults(
+        element="sm", param="dx", optimum=0, minval=-0.05, maxval=0.05, step=0.001)
+    ob.definePertubationAndGetResults(
+        element="sm", param="dy", optimum=0, minval=-0.05, maxval=0.05, step=0.001)
+
+    ob.definePertubationAndGetResults(
+        element="lens", param="dx", optimum=0, minval=-0.02, maxval=0.02, step=0.0004)
+    ob.definePertubationAndGetResults(
+        element="lens", param="dy", optimum=3.5, minval=-0.02, maxval=0.02, step=0.0004)
+
+    ob.definePertubationAndGetResults(
+        element="ccd", param="dx", optimum=0, minval=-2, maxval=2, step=0.04)
+    ob.definePertubationAndGetResults(
+        element="ccd", param="dy", optimum=3.5, minval=-2, maxval=2, step=0.04)
 
     '''This will clean up the connection to OpticStudio.
     Note that it closes down the server instance of OpticStudio,

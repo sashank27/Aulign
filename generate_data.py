@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 
 cwd = os.getcwd()
-path = os.path.join(cwd, 'Data')
+path = os.path.join(cwd, 'data')
 
 catlist = []
 i = 0
@@ -27,7 +27,22 @@ for cat in catlist:
     i=i+1
 
 data['category'] = category
+
+params = {'dx':0.0, 'dy':0.0, 'tx':0.0, 'ty':0.0}
+df = data.assign(**params)
+
+for index in df.index:
+    if index[:2] == 'dx':
+        df.at[index, 'dx'] = float(index[2:])
+    if index[:2] == 'dy':
+        df.at[index, 'dy'] = float(index[2:])
+    if index[:2] == 'tx':
+        df.at[index, 'tx'] = float(index[2:])
+    if index[:2] == 'ty':
+        df.at[index, 'ty'] = float(index[2:])
+
 # print(data.shape)
 # print(data.head())
 # print(data['category'].unique())
-data.to_csv(os.path.join(cwd, 'final1.csv'))
+
+df.to_csv(os.path.join(cwd, 'data.csv'))

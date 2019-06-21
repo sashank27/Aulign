@@ -31,12 +31,12 @@ if __name__ == '__main__':
     coefficients = extractZernikeCoefficents(filename)
 
     X = coefficients[:16]
-    model_class = pickle.load(open("rfc_model.pkl", "rb"))
+    model_class = pickle.load(open("model/rfc_model.pkl", "rb"))
 
-    reg0 = pickle.load(open("reg_pm.pkl", "rb"))
-    reg1 = pickle.load(open("reg_sm.pkl", "rb"))
-    reg2 = pickle.load(open("reg_lens.pkl", "rb"))
-    reg3 = pickle.load(open("reg_ccd.pkl", "rb"))
+    reg0 = pickle.load(open("model/reg0.pkl", "rb"))
+    reg1 = pickle.load(open("model/reg1.pkl", "rb"))
+    reg2 = pickle.load(open("model/reg2.pkl", "rb"))
+    reg3 = pickle.load(open("model/reg3.pkl", "rb"))
 
     print('Proabability of misalignment of each component (with specific parameter in each component):-')
     prob = model_class.predict_proba(X.reshape(1, -1))[0] * 100

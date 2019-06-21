@@ -172,7 +172,7 @@ class ZOSAPIAnalysis(object):
             if i == 0:
                 continue
             print(param + " = " + "{0:.3f}".format(i))
-            self.datadir = cwd + "\\Data\\" + element + "\\" + param + "{0:.3f}".format(i) + "\\"
+            self.datadir = cwd + "\\data\\" + element + "\\" + param + "{0:.3f}".format(i) + "\\"
             if not os.path.exists(self.datadir):
                 os.makedirs(self.datadir)
 

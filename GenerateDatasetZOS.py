@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import inspect
 
-
+# Function to extract Zernike coefficients from the results file obtained from the OpticStudio
 def extractZernikeCoefficents(file):
         import codecs
         import re
@@ -106,6 +106,31 @@ class PythonStandaloneApplication(object):
         else:
             return "Invalid"
 
+class Parameter(object):
+
+    def __init__(self, name, optimal, minval, maxval, step, optimal1=None):
+        self.name = name
+        self.optimal = optimal
+        self.minval = minval
+        self.maxval = maxval
+        self.step = step
+        
+        if optimal1 is not None:
+            self.optimal1 = optimal1
+
+class Component(object):
+    
+    def __init__(self, surface, revSurface, compName):
+        self.surface = surface
+        self.compName = compName
+        if revSurface is not None:
+            self.revSurface = revSurface
+    
+    def createParameter(self, name, optimal, minval, maxval, step, optimal1=None):
+        
+        param = Parameter(name, optimal, minval, maxval, step, optimal1)
+        setattr(self, name, param)
+        print(name, param)
 
 class ZOSAPIAnalysis(object):
 
@@ -123,96 +148,105 @@ class ZOSAPIAnalysis(object):
         self.TheSystem.LoadFile(file, False)
         print("File Imported")
 
-    def definePertubationAndGetResults(self, surfaceNumber, revSurfaceNumber=None, element="pm", param="dx", maxval=0, minval=0, step=0):
+    def definePertubationAndGetResults(self, component, params=["dx"]):
         import os
         cwd = os.getcwd()
 
-        TheLDE = self.TheSystem.LDE
-        Surface = TheLDE.GetSurfaceAt(surfaceNumber)
-
-        if param == "dx":
-            optimum1 = Surface.GetSurfaceCell(
-                constants.SurfaceColumn_Par1).DoubleValue
-        elif param == "dy":
-            optimum1 = Surface.GetSurfaceCell(
-                constants.SurfaceColumn_Par2).DoubleValue
-        elif param == "tx":
-            optimum1 = Surface.GetSurfaceCell(
-                constants.SurfaceColumn_Par3).DoubleValue
-        elif param == "ty":
-            optimum1 = Surface.GetSurfaceCell(
-                constants.SurfaceColumn_Par4).DoubleValue
-        elif param == "tz":
-            optimum1 = Surface.GetSurfaceCell(
-                constants.SurfaceColumn_Par5).DoubleValue
-
-        vals = np.linspace(minval, maxval, num=((maxval-minval)/step)+1)
-
-        if revSurfaceNumber is not None:
-            TheLDE = self.TheSystem.LDE
-            Surface = TheLDE.GetSurfaceAt(surfaceNumber)
-
-            if param == "dx":
-                optimum2 = Surface.GetSurfaceCell(
-                    constants.SurfaceColumn_Par1).DoubleValue
-            elif param == "dy":
-                optimum2 = Surface.GetSurfaceCell(
-                    constants.SurfaceColumn_Par2).DoubleValue
-            elif param == "tx":
-                optimum2 = Surface.GetSurfaceCell(
-                    constants.SurfaceColumn_Par3).DoubleValue
-            elif param == "ty":
-                optimum2 = Surface.GetSurfaceCell(
-                    constants.SurfaceColumn_Par4).DoubleValue
-            elif param == "tz":
-                optimum2 = Surface.GetSurfaceCell(
-                    constants.SurfaceColumn_Par5).DoubleValue
-
-        for i in vals:
+        param1 = component.params[0]
+        vals1 = np.linspace(param1.minval, param1.maxval, num=((param1.maxval-param1.minval)/param1.step)+1)
+        param2 = component.params[1]
+        vals2 = np.linspace(param2.minval, param2.maxval, num=((param2.maxval-param2.minval)/param2.step)+1)
+        
+        for i in vals1:
             if i == 0:
                 continue
-            print(param + " = " + "{0:.3f}".format(i))
-            self.datadir = cwd + "\\data\\" + element + "\\" + param + "{0:.3f}".format(i) + "\\"
-            if not os.path.exists(self.datadir):
-                os.makedirs(self.datadir)
+            
+            for j in vals2:
+                if j == 0:
+                    continue
+                print(param1.name + " = " + "{0:.3f}".format(i) + " " + param2.name + " = " + "{0:.3f}".format(j))
+                self.datadir = cwd + "\\data\\" + component.compName + "\\" + param1.name + "{0:.3f}".format(i) + param2.name + "{0:.3f}".format(j) + "\\"
+                if not os.path.exists(self.datadir):
+                    os.makedirs(self.datadir)
 
-            Decenter_X = Decenter_Y = Tilt_About_X = Tilt_About_Y = Tilt_About_Z = 0
-
-            if param == "dx":
-                Decenter_X = optimum1 + i
-            if param == "dy":
-                Decenter_Y = optimum1 + i
-            if param == "tx":
-                Tilt_About_X = optimum1 + i
-            if param == "ty":
-                Tilt_About_Y = optimum1 + i
-            if param == "tz":
-                Tilt_About_Z = optimum1 + i
-
-            self.CreatePertubationInSurface(surfaceNumber, Decenter_X=Decenter_X, Decenter_Y=Decenter_Y,
-                                            Tilt_About_X=Tilt_About_X, Tilt_About_Y=Tilt_About_Y, Tilt_About_Z=Tilt_About_Z)
-
-            if revSurfaceNumber is not None:
                 Decenter_X = Decenter_Y = Tilt_About_X = Tilt_About_Y = Tilt_About_Z = 0
 
                 if param == "dx":
-                    Decenter_X = optimum2 - i
+                    Decenter_X = optimum1 + i
                 if param == "dy":
-                    Decenter_Y = optimum2 - i
+                    Decenter_Y = optimum1 + i
                 if param == "tx":
-                    Tilt_About_X = optimum2 - i
+                    Tilt_About_X = optimum1 + i
                 if param == "ty":
-                    Tilt_About_Y = optimum2 - i
+                    Tilt_About_Y = optimum1 + i
                 if param == "tz":
-                    Tilt_About_Z = optimum2 - i
+                    Tilt_About_Z = optimum1 + i
 
-                self.CreatePertubationInSurface(revSurfaceNumber, Decenter_X=Decenter_X, Decenter_Y=Decenter_Y,
+                self.CreatePertubationInSurface(surfaceNumber, Decenter_X=Decenter_X, Decenter_Y=Decenter_Y,
                                                 Tilt_About_X=Tilt_About_X, Tilt_About_Y=Tilt_About_Y, Tilt_About_Z=Tilt_About_Z)
 
-            self.SpotDiagramAnalysisResults()
-            self.ZernikeCoefficients()
-            # self.CreateBatchRayTrace()
-            # print("aaa")
+                if revSurfaceNumber is not None:
+                    Decenter_X = Decenter_Y = Tilt_About_X = Tilt_About_Y = Tilt_About_Z = 0
+
+                    if param == "dx":
+                        Decenter_X = optimum2 - i
+                    if param == "dy":
+                        Decenter_Y = optimum2 - i
+                    if param == "tx":
+                        Tilt_About_X = optimum2 - i
+                    if param == "ty":
+                        Tilt_About_Y = optimum2 - i
+                    if param == "tz":
+                        Tilt_About_Z = optimum2 - i
+
+                    self.CreatePertubationInSurface(revSurfaceNumber, Decenter_X=Decenter_X, Decenter_Y=Decenter_Y,
+                                                    Tilt_About_X=Tilt_About_X, Tilt_About_Y=Tilt_About_Y, Tilt_About_Z=Tilt_About_Z)
+
+                self.SpotDiagramAnalysisResults()
+                self.ZernikeCoefficients()
+                # self.CreateBatchRayTrace()
+                # print("aaa")
+
+    def createComponents(self):
+        TheLDE = self.TheSystem.LDE
+        
+        # Primary mirror
+        Surface1 = TheLDE.GetSurfaceAt(5)
+        Surface2 = TheLDE.GetSurfaceAt(7)
+
+        self.pm = Component(Surface1, Surface2)
+        self.pm.createParameter("dx", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par1).DoubleValue, -0.05, 0.05, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par1).DoubleValue)
+        self.pm.createParameter("dy", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par2).DoubleValue, -0.05, 0.05, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par2).DoubleValue)
+        self.pm.createParameter("tx", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par3).DoubleValue, -0.017, 0.017, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par3).DoubleValue)
+        self.pm.createParameter("ty", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par4).DoubleValue, -0.017, 0.017, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par4).DoubleValue)
+
+        # Secondary mirror
+        Surface1 = TheLDE.GetSurfaceAt(8)
+        Surface2 = TheLDE.GetSurfaceAt(10)
+
+        self.sm = Component(Surface1, Surface2)
+        self.sm.createParameter("dx", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par1).DoubleValue, -0.05, 0.05, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par1).DoubleValue)
+        self.sm.createParameter("dy", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par2).DoubleValue, -0.05, 0.05, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par2).DoubleValue)
+        self.sm.createParameter("tx", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par3).DoubleValue, -0.017, 0.017, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par3).DoubleValue)
+        self.sm.createParameter("ty", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par4).DoubleValue, -0.017, 0.017, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par4).DoubleValue)
+
+        # Lens
+        Surface1 = TheLDE.GetSurfaceAt(20)
+        Surface2 = TheLDE.GetSurfaceAt(23)
+
+        self.lens = Component(Surface1, Surface2)
+        self.lens.createParameter("dx", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par1).DoubleValue, -0.02, 0.02, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par1).DoubleValue)
+        self.lens.createParameter("dy", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par2).DoubleValue, -0.02, 0.02, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par2).DoubleValue)
+        self.lens.createParameter("tx", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par3).DoubleValue, -0.017, 0.017, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par3).DoubleValue)
+        self.lens.createParameter("ty", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par4).DoubleValue, -0.017, 0.017, 0.001, Surface2.GetSurfaceCell(constants.SurfaceColumn_Par4).DoubleValue)
+
+        # CCD
+        Surface1 = TheLDE.GetSurfaceAt(23)
+        
+        self.ccd = Component(Surface1)
+        self.ccd.createParameter("dx", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par1).DoubleValue, -2, 2, 0.001)
+        self.ccd.createParameter("dy", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par2).DoubleValue, -0.05, 0.05, 0.001)
+        self.ccd.createParameter("ty", Surface1.GetSurfaceCell(constants.SurfaceColumn_Par3).DoubleValue, -0.05, 0.05, 0.001)
 
     def CreatePertubationInSurface(self, surfaceNumber, Decenter_X=0.0, Decenter_Y=0.0,
                                    Tilt_About_X=0.0, Tilt_About_Y=0.0,
@@ -353,47 +387,49 @@ if __name__ == '__main__':
     file = "test2.zmx"
     ob = ZOSAPIAnalysis(file)
 
-    # Perturbation in Primary Mirror (Surface-5,7)
-    print('Perturbation in Primary Mirror')
-    ob.definePertubationAndGetResults(
-        5, 7, element="pm", param="dx", minval=-0.05, maxval=0.05, step=0.001)
-    ob.definePertubationAndGetResults(
-        5, 7, element="pm", param="dy", minval=-0.05, maxval=0.05, step=0.001)
-    ob.definePertubationAndGetResults(
-        5, 7, element="pm", param="tx", minval=-0.017, maxval=0.017, step=0.001)
-    ob.definePertubationAndGetResults(
-        5, 7, element="pm", param="ty", minval=-0.017, maxval=0.017, step=0.001)
+    ob.createComponents()
 
-    # Perturbation in Secondary Mirror (Surface-8,10)
-    print('Perturbation in Secondary Mirror')
-    ob.definePertubationAndGetResults(
-        8, 10, element="sm", param="dx", minval=-0.05, maxval=0.05, step=0.001)
-    ob.definePertubationAndGetResults(
-        8, 10, element="sm", param="dy", minval=-0.05, maxval=0.05, step=0.001)
-    ob.definePertubationAndGetResults(
-        8, 10, element="sm", param="tx", minval=-0.017, maxval=0.017, step=0.001)
-    ob.definePertubationAndGetResults(
-        8, 10, element="sm", param="ty", minval=-0.017, maxval=0.017, step=0.001)
+    # # Perturbation in Primary Mirror (Surface-5,7)
+    # print('Perturbation in Primary Mirror')
+    # ob.definePertubationAndGetResults(
+    #     5, 7, element="pm", param="dx", minval=-0.05, maxval=0.05, step=0.001)
+    # ob.definePertubationAndGetResults(
+    #     5, 7, element="pm", param="dy", minval=-0.05, maxval=0.05, step=0.001)
+    # ob.definePertubationAndGetResults(
+    #     5, 7, element="pm", param="tx", minval=-0.017, maxval=0.017, step=0.001)
+    # ob.definePertubationAndGetResults(
+    #     5, 7, element="pm", param="ty", minval=-0.017, maxval=0.017, step=0.001)
 
-    # Perturbation in Lens (Surface-20,23)
-    print('Perturbation in Lens')
-    ob.definePertubationAndGetResults(
-        20, 23, element="lens", param="dx", minval=-0.02, maxval=0.02, step=0.001)
-    ob.definePertubationAndGetResults(
-        20, 23, element="lens", param="dy", minval=-0.02, maxval=0.02, step=0.001)
-    ob.definePertubationAndGetResults(
-        20, 23, element="lens", param="tx", minval=-0.017, maxval=0.017, step=0.001)
-    ob.definePertubationAndGetResults(
-        20, 23, element="lens", param="ty", minval=-0.017, maxval=0.017, step=0.001)
+    # # Perturbation in Secondary Mirror (Surface-8,10)
+    # print('Perturbation in Secondary Mirror')
+    # ob.definePertubationAndGetResults(
+    #     8, 10, element="sm", param="dx", minval=-0.05, maxval=0.05, step=0.001)
+    # ob.definePertubationAndGetResults(
+    #     8, 10, element="sm", param="dy", minval=-0.05, maxval=0.05, step=0.001)
+    # ob.definePertubationAndGetResults(
+    #     8, 10, element="sm", param="tx", minval=-0.017, maxval=0.017, step=0.001)
+    # ob.definePertubationAndGetResults(
+    #     8, 10, element="sm", param="ty", minval=-0.017, maxval=0.017, step=0.001)
 
-    # Perturbation in CCD (Surface-23)
-    print('Perturbation in CCD')
-    ob.definePertubationAndGetResults(
-        23, element="ccd", param="dx", minval=-2, maxval=2, step=0.01)
-    ob.definePertubationAndGetResults(
-        23, element="ccd", param="dy", minval=-2, maxval=2, step=0.01)
-    ob.definePertubationAndGetResults(
-        23, element="ccd", param="ty", minval=-0.05, maxval=0.05, step=0.001)
+    # # Perturbation in Lens (Surface-20,23)
+    # print('Perturbation in Lens')
+    # ob.definePertubationAndGetResults(
+    #     20, 23, element="lens", param="dx", minval=-0.02, maxval=0.02, step=0.001)
+    # ob.definePertubationAndGetResults(
+    #     20, 23, element="lens", param="dy", minval=-0.02, maxval=0.02, step=0.001)
+    # ob.definePertubationAndGetResults(
+    #     20, 23, element="lens", param="tx", minval=-0.017, maxval=0.017, step=0.001)
+    # ob.definePertubationAndGetResults(
+    #     20, 23, element="lens", param="ty", minval=-0.017, maxval=0.017, step=0.001)
+
+    # # Perturbation in CCD (Surface-23)
+    # print('Perturbation in CCD')
+    # ob.definePertubationAndGetResults(
+    #     23, element="ccd", param="dx", minval=-2, maxval=2, step=0.01)
+    # ob.definePertubationAndGetResults(
+    #     23, element="ccd", param="dy", minval=-2, maxval=2, step=0.01)
+    # ob.definePertubationAndGetResults(
+    #     23, element="ccd", param="ty", minval=-0.05, maxval=0.05, step=0.001)
 
     '''This will clean up the connection to OpticStudio.
     Note that it closes down the server instance of OpticStudio,

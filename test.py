@@ -3,23 +3,11 @@ import os
 import numpy as np
 import pickle
 import argparse
+from zosapi.util import extractZernikeCoefficents
 
-
-def extractZernikeCoefficents(file):
-        import codecs
-        import re
-
-        pattern = "^Z\s*(\d*)\s*([-]?[0-9]+[,.]?[0-9]*).*$"
-
-        x = []
-        for line in codecs.open(file, 'r', encoding='utf16'):
-            match = re.search(pattern, line)
-            if match is not None:
-                x.append(float(match.group(2)))
-
-        coefficients = np.array(x)
-        return coefficients
-
+"""
+Test the models on a sample data
+"""
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

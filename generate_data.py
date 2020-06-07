@@ -3,6 +3,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
+"""
+This file is used to iterate over the data files obtained from the ZOS-API,
+and is used to create a collection of values as a pandas dataframe
+"""
+
 cwd = os.getcwd()
 path = os.path.join(cwd, 'data')
 
@@ -14,9 +19,7 @@ for subdirs in os.listdir(path):
     catlist.append(subdirs)
 
 for cat in catlist:
-    
     for root, subdirs, files in os.walk(os.path.join(path, cat)):
-        
         for filename in files:
             file_path = os.path.join(root, filename)
             if filename == "zernike.csv":

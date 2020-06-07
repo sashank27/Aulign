@@ -10,6 +10,11 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 
 from sklearn.ensemble import RandomForestClassifier
 
+"""
+Imports the dataframe and creates a classification model for selection
+of the component causing the perturbation, and the possible proabability
+"""
+
 def import_data(filename):
     data = shuffle(pd.read_csv(filename, index_col=0))
     data_new = data[['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','category']]

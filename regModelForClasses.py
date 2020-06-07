@@ -14,6 +14,11 @@ from sklearn.ensemble import RandomForestRegressor
 
 np.random.seed(42)
 
+"""
+Imports the dataframe and creates a regression model for the component specified
+in the arguments passed.
+"""
+
 def extract_data(filename, sel_class=0):
     data = shuffle(pd.read_csv(filename, index_col=0))
     data_new = data[['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','category','dx','dy','tx','ty']]
